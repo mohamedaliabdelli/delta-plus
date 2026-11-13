@@ -8,6 +8,11 @@ services:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   mongo:
     image: mongo:7
@@ -20,16 +25,36 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
 
   api:
     build: ./backend
     container_name: delta_api
+    restart: unless-stopped
     env_file: .env
+    environment:
+      MONGO_URL: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongo:27017
+      PG_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
-      - mongo
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: delta_frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
 
 volumes:
   pg_data:
