@@ -16,8 +16,10 @@ import models_sql  # noqa: F401
 from models_mongo import Equipment
 from models_tickets import Ticket, Establishment
 from models_monitoring import NetworkDevice, Metric
+from models_orders import Order
 from tickets import router as tickets_router
 from monitoring import router as monitoring_router, simulator_loop
+from orders import router as orders_router
 
 
 @asynccontextmanager
@@ -26,7 +28,7 @@ async def lifespan(app: FastAPI):
     await init_beanie(
         database=client["delta_sav"],
         document_models=[Equipment, Ticket, Establishment,
-                         NetworkDevice, Metric],
+                         NetworkDevice, Metric, Order],
     )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -59,6 +61,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(tickets_router)
 app.include_router(monitoring_router)
+app.include_router(orders_router)
 
 
 @app.get("/health")
